@@ -21,3 +21,5 @@ and reports from events Aptos organizes, existing Move smart contracts, and much
 and then using a fine-tuned LLM over it to make the process smoother, faster, and much more attractive on the user side.
 Using all the above data, the DApp will be able to take on large-scale problems and provide solutions at a rapid pace. With real-time data being fed to the databases, the world of Aptos 
 evolves, this DApp can be a great starting point for all new aspiring developers trying to get into the Aptos blockchain.
+Unfortunately, as of now, I neither have the skills nor the knowledge to do all of this but I intend to work on acquiring the necessary knowledge to 
+complete this project and deploy it as soon as I can.
