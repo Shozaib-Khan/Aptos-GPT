@@ -1,0 +1,2545 @@
+The Move Programming Language
+Move is a safe and reliable language originally created by Diem. You can read language white paper
+on Diem developers website.
+This book is a collection of all the information which I found and shaped into a single source of
+knowledge about Move language.
+
+Foreword
+When I wrote this book, there was no documentation (or other reference) on Move language and the
+goal I pursued was to give people a chance to see hidden gem of crypto world - the Move language.
+Currently, there is a Move documentation written by language developers. Yet I still think that flow
+given in this book is more intuitive and more friendly for a newcomer, I once was a newcomer too
+and Move is one tricky and interesting language some concepts of which might be mind-blowing.
+I deeply love this language and hope you'll see why!
+- Damir Shamanaev
+
+Getting started
+Warning: Content on this page is outdated and requires rework. Newer version of Move IDE
+will be published soon. For now I recommend you to use move-cli.
+
+As with any compiled language, you need a proper set of tools to compile, run and debug your Move
+applications. Since this language is created for blockchains and used only within them, running
+scripts off-chain is a non-trivial task: every module will require an environment, account handling
+and compile-publishing system.
+To simpify development of Move modules I've created Move IDE extension for Visual Studio Code.
+This extension will help you cope with environment requirements. Use of this extension is highly
+recommended as it will handle the build/run environment for you, hence will let you focus on
+learning Move language instead of struggling with the CLI. This extension also includes Move syntax
+highlighting and executor to help debug your applications before going public.
+
+Install Move IDE
+To install it you'll need:
+1. VSCode (version 1.43.0 and above) - you can get it here; if you already have one - proceed to
+the next step;
+2. Move-Analyzer IDE - once VSCode is installed, follow this link to install the newest version of
+IDE.
+
+Setup environment
+Move IDE proposes a single way of organizing your directory structure. Create a new directory for
+your project and open it in VSCode. Then setup this directory structure:
+modules/
+scripts/
+out/
+
+- directory for our modules
+- directory for transaction scripts
+- this directory will hold compiled sources
+
+Also you'll need to create a file called .mvconfig.json which will configure your working
+environment. This is a sample for libra :
+{
+"network": "libra",
+"sender": "0x1"
+}
+
+Alternatively you can use dfinance as network:
+{
+"network": "dfinance",
+"sender": "0x1"
+}
+
+dfinance uses bech32 'wallet1...' addresses, libra uses 16-byte '0x...' addresses. For local runs
+and experiments 0x1 address is enough - it's simple and short. Though when working with real
+blockchains in testnet or production environment you'll have to use correct address of the
+network you've chosen.
+
+Your very first application with Move
+Move IDE allows you to run scripts in a testing environment. Let's see how it works by implementing
+gimme_five() function and running it inside VSCode.
+
+Create module
+Create new file called hello_world.move inside modules/ directory of your project.
+
+// modules/hello_world.move
+address 0x1 {
+module HelloWorld {
+public fun gimme_five(): u8 {
+5
+}
+}
+}
+
+If you decided to use your own address (not 0x1 ) - make sure you've changed 0x1 in this file
+and the one below
+
+Write script
+Then create a script, let's call it run_hello.move inside scripts/ directory:
+// scripts/run_hello.move
+script {
+use 0x1::HelloWorld;
+use 0x1::Debug;
+fun main() {
+let five = HelloWorld::gimme_five();
+Debug::print<u8>(&five);
+}
+}
+
+Then, while keeping your script open follow these steps:
+1. Toggle VSCode's command palette by pressing ⌘+Shift+P (on Mac) or Ctrl+Shift+P (on
+Linux/Windows)
+2. Type: >Move: Run Script and press enter or click when you see the right option.
+Voila! You should see the execution result - log message with '5' printed in debug. If you don't see
+this window, go through this part again.
+Your directory structure should look like this:
+modules/
+hello_world.move
+scripts/
+run_hello.move
+out/
+.mvconfig.json
+
+You can have as many modules as you want in your modules directory; all of them will be
+accessible in your scripts under address which you've specified in .mvconfig.json
+
+Syntax Basics
+In this chapter you'll get to know Move language. We'll start with very simple and basic grammar
+rules and intensity will increase from one chapter to another. If you're a skilled developer this may
+seem too easy at first glance, but I do recommend you to take a closer look. If you're a beginner,
+then this part will give you everything you need to know about Move basics.
+
+Concept
+Unlike other blockchain languages (e.g. Solidity) Move proposes separation of scripts (or transactionas-script) and modules. The former allows you to put more logic into your transactions and make
+them more flexible while saving your time and resources; and the latter allows developers to extend
+blockchain functionality or to implement custom smart-contracts with a variety of options.
+In basics we'll start with scripts as they're pretty friendly for a newcomer, and then we'll get to
+modules.
+
+Primitive Types
+Move has few built-in primitive types to represent numbers, addresses and boolean values: integers
+(u8, u64, u128), boolean and address .
+Move does not have string type or floating point numbers.
+
+Integer types
+Integers are represented by u8 , u64 and u128 ; Possible integer notations are:
+
+script {
+fun main() {
+// define empty variable, set value later
+let a: u8;
+a = 10;
+
+// define variable, set type
+let a: u64 = 10;
+// finally simple assignment
+let a = 10;
+// simple assignment with defined value type
+let a = 10u128;
+// in function calls or expressions you can use ints as constant values
+if (a < 10) {};
+// or like this, with type
+if (a < 10u8) {}; // usually you don't need to specify type
+}
+}
+
+Operator as
+When you need to compare values or when function argument requires integer of different size you
+can cast your integer variable to another size by using operator as :
+script {
+fun main() {
+let a: u8 = 10;
+let b: u64 = 100;
+
+// we can only compare same size integers
+if (a == (b as u8)) abort 11;
+if ((a as u64) == b) abort 11;
+}
+}
+
+Boolean
+Boolean type is just the one you're used to. Two constant values: false and true - both can only
+mean one thing - a value of bool type.
+script {
+fun main() {
+// these are all the ways to do it
+let b : bool; b = true;
+let b : bool = true;
+let b = true;
+let b = false; // here's an example with false
+}
+}
+
+Address
+Address is an identifier of sender (or wallet) in blockchain. The very basic operations which require
+address type are sending coins and importing modules.
+script {
+fun main() {
+let addr: address; // type identifier
+
+// in this book I'll use {{sender}} notation;
+// always replace `{{sender}}` in examples with VM specific address!!!
+addr = {{sender}};
+// in Diem's Move VM and Starcoin - 16-byte address in HEX
+addr = 0x...;
+// in dfinance's DVM - bech32 encoded address with `wallet1` prefix
+addr = wallet1....;
+}
+}
+
+Comments
+If you feel like some places in your code require additional explanation, use comments. Comments
+are non-executable blocks or lines of text aimed to describe some pieces of the code.
+
+Line comments
+script {
+fun main() {
+// this is a comment line
+}
+}
+
+You can use double-slash "//" to write line comments. Rules are simple - everything after "//" is
+considered a comment to the end of line. You can use line comments to leave short notes for other
+developers or to comment out some code to remove it from the execution chain.
+
+script {
+// let's add a note to everything!
+fun main() {
+let a = 10;
+// let b = 10 this line is commented and won't be executed
+let b = 5; // here comment is placed after code
+a + b // result is 15, not 10!
+}
+}
+
+Block comments
+If you don't want to comment all the line contents, or if you want to comment out more than one
+line you can use block comments.
+Block comment starts with slash-asterisk /* and includes all the text before first asterisk-slash */.
+Block comment is not limited by one line and gives you power of making a note in absolutely any
+place in code.
+script {
+fun /* you can comment everywhere */ main() {
+/* here
+there
+everywhere */ let a = 10;
+let b = /* even here */ 10; /* and again */
+a + b
+}
+/* you can use it to remove certain expressions or definitions
+fun empty_commented_out() {
+
+}
+*/
+}
+
+Of course this example is ridiculous! But it clearly shows the power of block comment. Feel free to
+comment anywhere!
+
+Expression and Scope
+In programming languages expression is a unit of code which returns a value. A function call with
+return value is an expression - it returns value; an integer (or bool or address) literal is also an
+expression - it has the value of its integer type and so on.
+Expressions must be sequenced (separated) by a semicolon*
+* When you put a semicolon, 'internally' it's treated as ; (empty_expression) . If you put any expression
+after semi, it will replace the empty one.
+
+Empty expression
+You probably will never use it directly but empty expression in Move (in this way it's similar to Rust)
+is marked with empty parentheses:
+script {
+fun empty() {
+() // this is an empty expression
+}
+}
+
+Empty expression can be omitted as it's automatically put by VM.
+
+Literal expressions
+Look at the code below. Every line contains an expression which ends with a semicolon. Last line has
+three expressions separated by semicolons.
+script {
+fun main() {
+10;
+10 + 5;
+true;
+true != false;
+0x1;
+1; 2; 3
+}
+}
+
+Good. You now know the simplest expressions there are. But why do we need them? And how to use
+it? It's time to know the let keyword.
+
+Variables and let keyword
+To store expression value inside a variable (to pass it somewhere) you have a keyword let (you've
+already seen it in primitives chapter). It creates a new variable either empty (undefined) or with value
+of expression.
+script {
+fun main() {
+let a;
+let b = true;
+let c = 10;
+let d = 0x1;
+a = c;
+}
+}
+
+Keyword let creates new variable inside current scope and optionally initializes this variable
+with value. Syntax for this expression is: let <VARIABLE> : <TYPE>; or let <VARIABLE> =
+<EXPRESSION> .
+After you've created and initialized variable you're able to modify or access its value by using a
+variable name. In example above variable a was initialized in the end of function and was assigned a
+value of variable c .
+Equality sign = is an assignment operator. It assigns right-hand-side expression to the lefthand-side variable. Example: a = 10 - variable a is assigned an integer value of 10 .
+
+Operators for integer types
+Move has a variety of operators to modify integer values. Here's a list:
+Operator
+
+Op
+
+Types
+
++
+
+sum
+
+uint
+
+Sum LHS and RHS
+
+-
+
+sub
+
+uint
+
+Subtract RHS from LHS
+
+/
+
+div
+
+uint
+
+Divide LHS by RHS
+
+*
+
+mul
+
+uint
+
+Multiply LHS times RHS
+
+%
+
+mod
+
+uint
+
+Division remainder (LHS by RHS)
+
+<<
+
+lshift
+
+uint
+
+Left bit shift LHS by RHS
+
+>>
+
+rshift
+
+uint
+
+Right bit shift LHS by RHS
+
+&
+
+and
+
+uint
+
+Bitwise AND
+
+^
+
+xor
+
+uint
+
+Bitwise XOR
+
+|
+
+or
+
+uint
+
+Bitwise OR
+
+LHS - left-hand-side expression, RHS - right-hand-side expression; uint: u8, u64, u128.
+
+Underscore "_" to mark unused
+In Move every variable must be used (otherwise your code won't compile), hence you can't initialize
+one and leave it untouched. Though you have one way to mark variable as intentionally unused - by
+using underscore _ .
+You'll get an error if you try to compile this script:
+script {
+fun main() {
+let a = 1;
+}
+}
+
+The error:
+┌── /scripts/script.move:3:13 ───
+│
+33 │
+let a = 1;
+│
+^ Unused assignment or binding for local 'a'. Consider removing or
+replacing it with '_'
+│
+
+Compiler message is pretty clear, so all you have to do in this case is put underscore instead:
+script {
+fun main() {
+let _ = 1;
+}
+}
+
+Shadowing
+Move allows you to define the same variable twice with one limitation - it still needs to be used. In
+the example above only second a is used. The first one: let a = 1 is actually unused as on the
+next line we redefine a while leaving the first one unused.
+script {
+fun main() {
+let a = 1;
+let a = 2;
+let _ = a;
+}
+}
+
+Though we still can make it work by using first one:
+script {
+fun main() {
+let a = 1;
+let a = a + 2; // though let here is unnecessary
+let _ = a;
+}
+}
+
+Block expression
+A block is an expression; it's marked with curly braces - {} . Block can contain other expressions (and
+other blocks). Function body (as you can see by already familiar curly-braces) is also a block in some
+sense (with few limitations).
+
+script {
+fun block() {
+{ };
+{ { }; };
+true;
+{
+true;
+{ 10; };
+};
+{ { { 10; }; }; };
+}
+}
+
+Understanding scopes
+Scope (as it's said in Wikipedia) is a region of code where binding is valid. In other words - it's a part
+of code in which variable exists. In Move scope is a block of code surrounded by curly braces basically a block.
+When defining block you actually define a scope.
+script {
+fun scope_sample() {
+// this is a function scope
+{
+// this is a block scope inside function scope
+{
+// and this is a scope inside scope
+// inside functions scope... etc
+};
+};
+{
+
+// this is another block inside function scope
+
+};
+}
+}
+
+As you can see from comments in this sample, scopes are defined by blocks (or functions), they can
+be nested and there's no limit to how many scopes you can define.
+
+Variable lifetime and visibility
+Keyword let creates a variable - you already know that. Though you probably don't know that
+defined variable will live only inside the scope where it's defined (hence inside nested scopes); simply
+put - it's unaccessible outside its scope and dies right after this scope's end.
+script {
+fun let_scope_sample() {
+let a = 1; // we've defined variable A inside function scope
+{
+
+let b = 2; // variable B is inside block scope
+{
+
+// variables A and B are accessible inside
+// nested scopes
+let c = a + b;
+
+}; // in here C dies
+
+// we can't write this line
+// let d = c + b;
+// as variable C died with its scope
+// but we can define another C
+let c = b - 1;
+}; // variable B dies, so does C
+
+// this is impossible
+// let d = b + c;
+// we can define any variables we want
+// no name reservation happened
+let b = a + 1;
+let c = b + 1;
+} // function scope ended - a, b and c are dropped and no longer accessible
+}
+
+Variable lives only within scope (or block) where it's defined. When its scope ends, the variable
+dies.
+
+Block return values
+In the previous part you've learned that block is an expression but we didn't cover why it is an
+expression and what is the block's return value.
+Block can return a value, it's the value of the last expression inside this block if it's not followed
+by semicolon
+May sound hard, so I'll give you few examples:
+
+script {
+fun block_ret_sample() {
+
+// since block is an expression, we can
+// assign it's value to variable with let
+let a = {
+let c = 10;
+c * 1000 // no semicolon!
+}; // scope ended, variable a got value 10000
+let b = {
+a * 1000
+};
+
+// no semi!
+
+// variable b got value 10000000
+{
+
+10; // see semi!
+}; // this block does not return a value
+let _ = a + b; // both a and b get their values from blocks
+}
+}
+
+Last expression in scope (without semicolon) is the return value of this scope.
+
+Summary
+Let's keynote the main points of this chapter.
+1. Every expression must end with semicolon unless it's the return value of block;
+2. Keyword let creates new variable with value or right-hand-side expression which lives as long
+as the scope in which it's been created;
+3. Block is an expression that may or may not have return value.
+How to control execution flow and how to use blocks for logic switches - on the next page.
+
+Further reading
+Diem Community thread on empty expressions and semicolon
+
+Control Flow
+Move is imperative language and like one it has control flow - a way to make choice whether to run
+block of code or to skip or to run another one instead.
+In Move you have loops ( while and loop ) and if expressions.
+
+The if expression
+if expression allows you to run a block of code if some condition is true, and to run another block
+
+instead if condition resulted in false.
+script {
+use 0x1::Debug;
+fun main() {
+let a = true;
+
+if (a) {
+Debug::print<u8>(&0);
+} else {
+Debug::print<u8>(&99);
+};
+}
+}
+
+In this example we've used if + block to print 0 if a == true and if a is false - then 99 is
+printed. Simple as that, if syntax is:
+if (<bool_expression>) <expression> else <expression>;
+if is an expression, and like all of them it must end with semicolon. This is also a reason to use it
+
+with let statement!
+
+script {
+use 0x1::Debug;
+fun main() {
+
+// try switching to false
+let a = true;
+let b = if (a) { // 1st branch
+10
+} else { // 2nd branch
+20
+};
+Debug::print<u8>(&b);
+}
+}
+
+Now variable b will be assigned a different value depending on the a expression. But both of the
+branches in if must return the same type! Otherwise variable b will have an option to be of
+different kind (or undefined) and this is impossible in statically typed language. In compiler terms it's
+called branch compatibility - both of the branches must return compatible (same) type.
+
+if can be used in-solo - without else .
+script {
+use 0x1::Debug;
+fun main() {
+let a = true;
+
+// only one optional branch
+// if a = false, debug won't be called
+if (a) {
+Debug::print<u8>(&10);
+};
+}
+}
+
+But keep in mind that if expression without else branch cannot be used in assignment as when
+condition is not met - alternative branch is not called and variable may be undefined which is, again,
+impossible.
+
+Iterating with loops
+There're two ways of defining loops in Move:
+1. Conditional loop with while
+2. Inifinite loop
+
+Conditional loop with while
+while is a way to define loop - expression which will be executed while some condition is true. So
+
+simply: code will be run over and over while condition is true . To implement condition usually an
+external variable (or counter) is used.
+script {
+fun main() {
+let i = 0; // define counter
+
+// iterate while i < 5
+// on every iteration increase i
+// when i is 5, condition fails and loop exits
+while (i < 5) {
+i = i + 1;
+};
+}
+}
+
+It's worth mentioning that while is an expression - just like if is, and it too requires a semicolon
+afterwards. Generic syntax for while loop is:
+while (<bool_expression>) <expression>;
+
+Unlike if , while cannot return a value, so variable assignment (like we did with if expression) is
+impossible.
+
+Unreachable code
+To be reliable Move must be secure. This is why it obliges you to use all your variables and for the
+same reason it forbids having unreachable code. As digital assets are programmable, they can be
+used in code (you'll learn about it in resources chapter), and placing them in unreachable areas may
+lead to inconvenience and their loss as the result.
+This is why unreachable code is such a big issue. Now that is clear, we can proceed.
+
+Infinite loop
+There is a way to define infinite loops. They're non-conditional and actually infinite (unless you force
+them to stop). Unfortunately the compiler cannot define whether a loop is infinite (in most of the
+cases) and cannot stop you from publishing code, execution of which will consume all given
+resources (in blockchain terms - gas). So it's on you to test your code properly when using them or
+just switch to conditional while as it's way more secure.
+Infinite loops are defined with keyword loop .
+script {
+fun main() {
+let i = 0;
+loop {
+i = i + 1;
+};
+
+// UNREACHABLE CODE
+let _ = i;
+}
+}
+
+However this is possible (compiler will let you do this):
+
+script {
+fun main() {
+let i = 0;
+loop {
+if (i == 1) { // i never changed
+break // this statement breaks loop
+}
+};
+
+// actually unreachable
+0x1::Debug::print<u8>(&i);
+}
+}
+
+It's a non-trivial task for the compiler to understand whether a loop is really infinite or not, so for
+now you and only you can help yourself avoid looping errors.
+
+Control loops with continue and break
+Keywords continue and break allow you to skip one round or break iteration respectively. You can
+use both of them in both types of loops.
+For example let's add two conditions into the loop . If i is even, we use continue to jump to the
+next iteration without going through code after continue call.
+With break we stop iteration and exit loop.
+script {
+fun main() {
+let i = 0;
+loop {
+i = i + 1;
+if (i / 2 == 0) continue;
+if (i == 5) break;
+
+// assume we do something here
+};
+0x1::Debug::print<u8>(&i);
+}
+}
+
+About semicolons. If break and continue are the last keywords in a block, you can't put a
+semicolon after them as any code after won't be executed. Somehow even semi can't be put. See
+this:
+script {
+fun main() {
+let i = 0;
+loop {
+i = i + 1;
+if (i == 5) {
+break; // will result in compiler error. correct is `break` without
+
+semi
+
+// Error: Unreachable code
+};
+
+// same with continue here: no semi, never;
+if (true) {
+continue
+};
+// however you can put semi like this, because continue and break here
+// are single expressions, hence they "end their own scope"
+if (true) continue;
+if (i == 5) break;
+}
+}
+}
+
+Conditional abort
+Sometimes you need to abort execution of transaction when some condition has failed. For that
+case there's keyword abort .
+script {
+fun main(a: u8) {
+if (a != 10) {
+abort 0;
+}
+
+// code here won't be executed if a != 10
+// transaction aborted
+}
+}
+
+Keyword abort allows you to abort execution with an error code which is placed right after.
+
+Use assert built-in
+Built-in assert!(<bool expression>, <code>) method already wraps abort + condition and is
+accessible anywhere in code:
+
+script {
+fun main(a: u8) {
+assert!(a == 10, 0);
+
+// code here will be executed if (a == 10)
+}
+}
+assert() will abort execution when condition is not met, or it will do nothing in the opposite case.
+
+Module and Import
+Module is a set of functions and types packed together which the developer publishes under his
+address. In the previous chapters we only used scripts, though script can only operate with
+published modules or standard library which itself is a set of modules published under 0x1 address.
+Module is published under its sender's address. Standard library is published under 0x1
+address.
+
+When publishing a module, none of its functions are executed. To use module - use scripts.
+Module starts with module keyword, which is followed by module name and curly braces - inside
+them module contents are placed.
+module Math {
+
+// module contents
+public fun sum(a: u64, b: u64): u64 {
+a + b
+}
+}
+
+Module is the only way to publish code accessible for others; new types and resources can too
+only be defined within module context.
+By default your module will be compiled and published from your address. However if you need to
+use some modules locally (e.g. for testing or developing) or want to specify your address inside
+module file, use address <ADDR> {} syntax:
+address 0x1 {
+module Math {
+// module contents
+public fun sum(a: u64, b: u64): u64 {
+a + b
+}
+}
+}
+
+Like shown in example: best practice is to keep module line without indentation
+
+Imports
+Default context in Move is empty: the only types you can use are primitives (integers, bool and
+address), and the only thing you can do within empty context is operate these types and variables
+while being unable to do something meaningful or useful.
+To change that you can import published modules (or standard library).
+
+Direct import
+You can use modules by their address directly in your code:
+script {
+fun main(a: u8) {
+0x1::Offer::assert!(a == 10, 1);
+}
+}
+
+In this example we've imported module Offer from address 0x1 (standard library) and used its
+method assert!(expr: bool, code: u8) .
+
+Keyword use
+To make code shorter (remember that only 0x1 address is short, actual addresses are pretty long!)
+and to organize imports you can use keyword use :
+use <Address>::<ModuleName>;
+
+Here <Address> is a publisher's address and <ModuleName> is a name of a module. Pretty simple.
+Same here, we'll import Vector module from 0x1 .
+use 0x1::Vector;
+
+Accessing module's contents
+To access imported module's methods (or types) use :: notation. Simple as that - modules can only
+have one level of definitions so everything you define in the module (publicly) can be accessed via
+
+double colon.
+script {
+use 0x1::Vector;
+fun main() {
+// here we use method empty() of module Vector
+// the same way we'd access any other method of any other module
+let _ = Vector::empty<u64>();
+}
+}
+
+Import in script
+In scripts imports must be placed inside script {} block:
+script {
+use 0x1::Vector;
+
+// in just the same way you can import any
+// other module(s). as many as you want!
+fun main() {
+let _ = Vector::empty<u64>();
+}
+}
+
+Import in module
+Module imports must be specified inside module {} block:
+module Math {
+use 0x1::Vector;
+
+// the same way as in scripts
+// you are free to import any number of modules
+public fun empty_vec(): vector<u64> {
+Vector::empty<u64>();
+}
+}
+
+Member import
+Import statement can be extended - you can specify which members of the module you want to
+import:
+script {
+// single member import
+use 0x1::Signer::address_of;
+
+// multi member import (mind braces)
+use 0x1::Vector::{
+empty,
+push_back
+};
+fun main(acc: &signer) {
+// use functions without module access
+let vec = empty<u8>();
+push_back(&mut vec, 10);
+
+// same here
+let _ = address_of(acc);
+}
+}
+
+Using Self to import module alongside its members
+Small extension to member import syntax allows you to import whole module and its members. Use
+Self for module.
+script {
+use 0x1::Vector::{
+Self, // Self == Imported module
+empty
+};
+fun main() {
+// `empty` imported as `empty`
+let vec = empty<u8>();
+
+// Self means Vector
+Vector::push_back(&mut vec, 10);
+}
+}
+
+Use meets as
+To resolve naming conflicts (when 2 or more modules have same names) and to shorten you code
+you can change name of the imported module using keyword as .
+Syntax:
+use <Address>::<ModuleName> as <Alias>;
+
+In script:
+
+script {
+use 0x1::Vector as V; // V now means Vector
+fun main() {
+V::empty<u64>();
+}
+}
+
+The same in module:
+module Math {
+use 0x1::Vector as Vec;
+fun length(&v: vector<u8>): u64 {
+Vec::length(&v)
+}
+}
+
+For Self and member import (works in modules and scripts):
+script {
+use 0x1::Vector::{
+Self as V,
+empty as empty_vec
+};
+fun main() {
+// `empty` imported as `empty_vec`
+let vec = empty_vec<u8>();
+
+// Self as V = Vector
+V::push_back(&mut vec, 10);
+}
+}
+
+Constants
+You can define module or script-level constants. Once defined, constants cannot be changed, and
+they should be used to define some constant values for specific module (say, a role identifier or price
+for action) or script.
+Constants can be defined as primitive types (integers, bool and address) and as a vector . They are
+accessed by their names and are local to script/module where they are defined.
+Accessing constant value from outside of its module is impossible
+script {
+use 0x1::Debug;
+const RECEIVER : address = 0x999;
+fun main(account: &signer) {
+Debug::print<address>(&RECEIVER);
+
+// they can also be assigned to a variable
+let _ = RECEIVER;
+
+// but this code leads to compile error
+// RECEIVER = 0x800;
+}
+}
+
+Same usage in module:
+module M {
+const MAX : u64 = 100;
+
+// however you can pass constant outside using a function
+public fun get_max(): u64 {
+MAX
+}
+// or using
+public fun is_max(num: u64): bool {
+num == MAX
+}
+}
+
+Summary
+What is important to know about constants:
+1. They are unchangeable once defined;
+2. They are local to their module or script and cannot be used outside;
+3. Usually they are used to define module-level constant value which serves some business
+purpose;
+4. It is also possible to define constant as an expression (with curly braces) but syntax of this
+expression is very limited.
+
+Further reading
+PR with constant syntax
+
+Function
+Function is the only place of execution in Move. Function starts with the fun keyword which is
+followed by function name, parentheses for arguments and curly braces for body.
+
+fun function_name(arg1: u64, arg2: bool): u64 {
+// function body
+}
+
+You have already seen some in previous chapters. And now you will learn how to use them.
+Note: in Move functions should be named in snake_case - lowercase with underscores as word
+separators.
+
+Function in script
+Script block can contain only one function which is considered main. This function (possibly with
+arguments) will be executed as a transaction. It is very limited: it cannot return value and should be
+used to operate other functions in already published modules.
+Here's an example of simple script which checks if address exists:
+script {
+use 0x1::Account;
+fun main(addr: address) {
+assert!(Account::exists(addr), 1);
+}
+}
+
+This function can have arguments: in this case it is addr argument with type address , also it can
+operate imported modules.
+Note: as there's only one function, you can call it any way you want. Though you may want to
+follow general programming concepts and call it main
+
+Function in module
+While script context is fairly limited, full potential of functions can only be seen in a module. Let's go
+through it again: module is a published set of functions and types (we'll get to it in the next chapter)
+which solves one or many tasks.
+In this part we'll create a simple Math module which will provide users with a basic set of
+mathematical functions and a few helper methods. Most of this could be done without using a
+module, but our goal is education!
+module Math {
+fun zero(): u8 {
+0
+}
+}
+
+First step: we've defined a module named Math with one function in it: zero() , which returns 0 - a
+value of type u8 . Remember expressions? There's no semicolon after 0 as it is the return value of
+this function. Just like you would do with block. Yeah, function body is very similar to block.
+
+Function arguments
+This should be clear by now, but let's repeat. Function can take arguments (values passed into
+function). As many as needed. Every argument has 2 properties: name - its name within a function
+body, and type - just like any other variable in Move.
+Function arguments - just like any other variables defined within a scope - live only within function
+body. When the function block ends, no variables remain.
+module Math {
+public fun sum(a: u64, b: u64): u64 {
+a + b
+}
+fun zero(): u8 {
+0
+}
+}
+
+What's new in our Math: function sum(a,b) which sums two u64 values and returns a result - u64
+sum (type can't change).
+Let's state few syntax rules:
+1. Arguments must have types and must be separated by comma
+2. Function return value is placed after parentheses and must follow a colon
+Now how would we use this function in script? Through import!
+script {
+use 0x1::Math; // used 0x1 here; could be your address
+use 0x1::Debug; // this one will be covered later!
+fun main(first_num: u64, second_num: u64) {
+
+// variables names don't have to match the function's ones
+let sum = Math::sum(first_num, second_num);
+Debug::print<u64>(&sum);
+}
+}
+
+Keyword return
+Keyword return allows you to stop function execution and return value. It is supposed to be used
+with if condition, as that is the only way to make conditional switch in control flow.
+module M {
+public fun conditional_return(a: u8): bool {
+if (a == 10) {
+return true // semi is not put!
+};
+if (a < 10) {
+true
+} else {
+false
+}
+}
+}
+
+Multiple return values
+In previous examples we've experimented with functions with no return value or with single. But
+what if I told you that you can return multiple values of any type? Curious? Let's proceed!
+To specify multiple return values you need to use parentheses:
+module Math {
+
+// ...
+public fun max(a: u8, b: u8): (u8, bool) {
+if (a > b) {
+(a, false)
+} else if (a < b) {
+(b, false)
+} else {
+(a, true)
+}
+}
+}
+
+This function takes two arguments: a and b and returns two values: first is the max value from two
+passed and second is a bool - whether numbers entered are equal. Take closer look at the syntax:
+instead of specifying single return argument we've added parenteses and have listed return
+argument types.
+Now let's see how we can use the result of this function in another function in the script.
+script {
+use 0x1::Debug;
+use 0x1::Math;
+fun main(a: u8, b: u8) {
+let (max, is_equal) = Math::max(99, 100);
+assert(is_equal, 1)
+Debug::print<u8>(&max);
+}
+}
+
+In this example we've destructed a tuple: created two new variables with values and types of return
+values of function max. Order is preserved and variable max here gets type u8 and now stores max
+value, whereas is_equal is a bool.
+Two is not the limit - number of returned arguments is up to you, though you'll soon learn about
+structs and see alternative way to return complex data.
+
+Function visibility
+When defining a module you may want to make some functions accessible by other developers and
+some to remain hidden. This is when function visibility modifiers come to play.
+By default every function defined in a module is private - it cannot be accessed in other modules or
+scripts. If you've been attentive, you may have noticed that some of the functions that we've defined
+in our Math module have keyword public before their definition:
+module Math {
+public fun sum(a: u64, b: u64): u64 {
+a + b
+}
+fun zero(): u8 {
+0
+}
+}
+
+In this example function sum() is accessible from outside when module is imported, however
+function zero() is not - it is private by default.
+Keyword public changes function's default private visibility and makes it public - i.e. accessible
+from outside.
+So basically if you didn't make sum() function public, this wouldn't be possible:
+
+script {
+use 0x1::Math;
+fun main() {
+Math::sum(10, 100); // won't compile!
+}
+}
+
+Access local functions
+There would not be any sense in making private functions if they could not be accessed at all. Private
+functions exist to do some internal work when public functions are called.
+Private functions can only be accessed in the module where they're defined.
+So how do you access functions in the same module? By simply calling this function like it was
+imported!
+module Math {
+public fun is_zero(a: u8): bool {
+a == zero()
+}
+fun zero(): u8 {
+0
+}
+}
+
+Any function defined in a module is accessible by any function in the same module no matter what
+visibility modifiers any of them has. This way private functions can still be used as calls inside public
+ones without exposing some private features or too risky operations.
+
+Native functions
+There's a special kind of functions - native ones. Native functions implement functionality which goes
+beyond Move's possibilities and give you extra power. Native functions are defined by VM itself and
+may vary in different implementations. Which means they don't have implementation in Move
+syntax and instead of having function body they end with a semicolon. Keyword native is used to
+mark native functions. It does not conflict with function visibility modifiers and the same function
+can be native and public at the same time.
+Here's an example from Diem's standard library.
+module Signer {
+native public fun borrow_address(s: &signer): &address;
+
+// ... some other functions ...
+}
+
+Advanced Topics
+In this section you'll learn few programming concepts which are widely used in Move: unique type
+system feature - abilities, ownership (and how it differs from Rust's one), generics and vector. All of
+them provide solid foundation for safety and flexibility of Move language.
+
+Structures
+Structure is a custom type which contains complex data (or no data). It can be described as a simple
+key-value storage where key is a name of property and value is what's stored. Defined using
+keyword struct . Struct can have up to 4 abilities, they are specified with type definition.
+Struct is the only way to create custom type in Move.
+
+Definition
+Struct definition is only allowed inside a module. It begins with keyword struct , followed by name
+and curly braces, where struct fields are defined:
+struct NAME {
+FIELD1: TYPE1,
+FIELD2: TYPE2,
+...
+}
+
+Look at these examples of struct definitions:
+
+module M {
+
+// struct can be without fields
+// but it is a new type
+struct Empty {}
+struct MyStruct {
+field1: address,
+field2: bool,
+field3: Empty
+}
+struct Example {
+field1: u8,
+field2: address,
+field3: u64,
+field4: bool,
+field5: bool,
+
+// you can use another struct as type
+field6: MyStruct
+}
+}
+
+Max number of fields in one struct is 65535.
+Every defined struct becomes new a type. This type can be accessed through its module (just like you
+would access module functions):
+M::MyStruct;
+// or
+M::Example;
+
+Recursive definition
+Short as never:
+Recursive struct definition is impossible.
+You are allowed to use another struct as type but you can't recursively use the same struct. Move
+compiler checks recursive definitions and won't let you compile code like this:
+module M {
+struct MyStruct {
+
+// WON'T COMPILE
+field: MyStruct
+}
+}
+
+Create new struct
+To use this type you need to create its instance.
+New instances can only be created inside the module where they're defined.
+To create new instance use it's definition, but instead of passing types pass values of these types:
+module Country {
+struct Country {
+id: u8,
+population: u64
+}
+
+// Contry is a return type of this function!
+public fun new_country(c_id: u8, c_population: u64): Country {
+// structure creation is an expression
+let country = Country {
+id: c_id,
+population: c_population
+};
+country
+}
+}
+
+Move also allows you to create new instances shorter - by passing variable name which matches
+struct's field (and type!). We can simplify our new_country() method using this rule:
+// ...
+public fun new_country(id: u8, population: u64): Country {
+// id matches id: u8 field
+// population matches population field
+Country {
+id,
+population
+}
+// or even in one line: Country { id, population }
+}
+
+To create an empty struct (with no fields) simply use curly braces:
+public fun empty(): Empty {
+Empty {}
+}
+
+Access struct fields
+Structs would have been almost useless if we hadn't had a way to access their fields (though you can
+create struct without fields).
+Only module can access its struct's fields. Outside of module fields are private.
+Struct fields are only visible inside its module. Outside of this module (in script or another module)
+it's just a type. To access struct's fields use . (dot) notation:
+// ...
+public fun get_country_population(country: Country): u64 {
+country.population // <struct>.<property>
+}
+
+If nested struct type is defined in the same module it can be accessed in similar manner which can
+be generally described as:
+<struct>.<field>
+// and field can be another struct so
+<struct>.<field>.<nested_struct_field>...
+
+Destructing structures
+To destruct a struct use let <STRUCT DEF> = <STRUCT> syntax:
+module Country {
+
+// ...
+// we'll return values of this struct outside
+public fun destroy(country: Country): (u8, u64) {
+// variables must match struct fields
+// all struct fields must be specified
+let Country { id, population } = country;
+// after destruction country is dropped
+// but its fields are now variables and
+// can be used
+(id, population)
+}
+}
+
+You should remember that unused variables are prohibited in Move and sometimes you may need
+to destruct a structure without using its fields. For unused struct fields use _ - underscore:
+module Country {
+// ...
+public fun destroy(country: Country) {
+
+// this way you destroy struct and don't create unused variables
+let Country { id: _, population: _ } = country;
+// or take only id and don't init `population` variable
+// let Country { id, population: _ } = country;
+}
+}
+
+Destructuring may not seem important right now. But remember it - it will play a huge part when we
+get to resources.
+
+Implementing getter-functions for struct fields
+To make struct fields readable outside, you need to implement methods which will read these fields
+and pass them as return values. Usually the getter method is called the same way as struct's field
+but it may cause inconvenience if your module defines more than one struct.
+module Country {
+struct Country {
+id: u8,
+population: u64
+}
+public fun new_country(id: u8, population: u64): Country {
+Country {
+id, population
+}
+}
+
+// don't forget to make these methods public!
+public fun id(country: &Country): u8 {
+country.id
+}
+// don't mind ampersand here for now. you'll learn why it's
+// put here in references chapter
+public fun population(country: &Country): u64 {
+country.population
+}
+// ... fun destroy ...
+}
+
+By making getters we've allowed module users access fields of our struct:
+
+script {
+use {{sender}}::Country as C;
+use 0x1::Debug;
+fun main() {
+// variable here is of type C::Country
+let country = C::new_country(1, 10000000);
+Debug::print<u8>(
+&C::id(&country)
+); // print id
+Debug::print<u64>(
+&C::population(&country)
+);
+
+// however this is impossible and will lead to compile error
+// let id = country.id;
+// let population = country.population.
+C::destroy(country);
+}
+}
+
+Now you know how to define custom type - struct, but by default its functionality is limited. In the
+next chapter you will learn about abilities - a way to define how values of this type can be
+manipulated and used.
+
+Types with Abilities
+Move has unique type system which is very flexible and customizable. Each type can have up to 4
+abilities which define how values of this type can be used, dropped or stored.
+There are 4 type abilities: Copy, Drop, Store and Key.
+Simply described:
+Copy - value can be copied (or cloned by value).
+Drop - value can be dropped by the end of scope.
+Key - value can be used as a key for global storage operations.
+Store - value can be stored inside global storage.
+On this page we will go through Copy and Drop abilities in detail; more context over Key and
+Store abilities will be given when we get to Resources chapter.
+
+Abilities syntax
+Primitive and built-in types' abilities are pre-defined and unchangeable: integers, vector,
+addresses and boolean values have copy, drop and store abilities
+However when defining structs you can specify any set of abilities using this syntax:
+struct NAME has ABILITY [, ABILITY] { [FIELDS] }
+
+Or by example:
+module Library {
+
+// each ability has matching keyword
+// multiple abilities are listed with comma
+struct Book has store, copy, drop {
+year: u64
+}
+// single ability is also possible
+struct Storage has key {
+books: vector<Book>
+}
+// this one has no abilities
+struct Empty {}
+}
+
+Struct with no Abilities
+Before we jump into how to use abilities and what they bring into the language, let's see what
+happens if there's a type with no abilities.
+module Country {
+struct Country {
+id: u8,
+population: u64
+}
+public fun new_country(id: u8, population: u64): Country {
+Country { id, population }
+}
+}
+script {
+use {{sender}}::Country;
+fun main() {
+Country::new_country(1, 1000000);
+}
+}
+
+If you try to run this code, you'll get the following error:
+
+error:
+┌── scripts/main.move:5:9 ───
+│
+5 │
+Country::new_country(1, 1000000);
+│
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot ignore values without the 'drop'
+ability. The value must be used
+│
+
+Method Country::new_country() creates a value; this value is not passed anywhere and
+automatically dropped when function ends; but Country type doesn't have Drop ability, and it fails.
+Now let's change our struct definition and add Drop Ability.
+
+Drop
+Using abilities syntax we add has drop specifying drop ability for this struct. All of the instances of
+this struct will have drop ability and hence will be droppable.
+module Country {
+struct Country has drop { // has <ability>
+id: u8,
+population: u64
+}
+// ...
+}
+
+Now, when struct Country can be dropped, our script can be run.
+script {
+use {{sender}}::Country;
+fun main() {
+Country::new_country(1, 1000000); // value is dropped
+}
+}
+
+Note: Drop ability only defines drop behavior. Destructuring does not require Drop.
+
+Copy
+We learned how to create new instances of struct Country and drop them. But what if we wanted to
+create a copy? By default, structs are passed by value; and to create a copy of this struct we will use
+keyword copy (you will learn more about this behavior in the next chapter):
+script {
+use {{sender}}::Country;
+fun main() {
+let country = Country::new_country(1, 1000000);
+let _ = copy country;
+}
+}
+┌── scripts/main.move:6:17 ───
+│
+6 │
+let _ = copy country;
+│
+^^^^^^^^^^^^ Invalid 'copy' of owned value without the 'copy'
+ability
+│
+
+As you could expect, making a copy of type without copy ability failed. Compiler message is clear:
+module Country {
+struct Country has drop, copy { // see comma here!
+id: u8,
+population: u64
+}
+// ...
+}
+
+With that change code above would compile and run.
+
+Summary
+Primitive types have store, copy and drop.
+By default structs have no abilities.
+Copy and Drop abilities define whether value can be copied and dropped respectively.
+It is possible to set up to 4 abilities for a struct.
+
+Further reading
+Move Abilities Description
+
+Ownership and References
+Move VM implements Rust-like ownership system. And the best description of it is in the Rust Book.
+I recommend you reading the ownership chapter in the Rust Book even though Rust syntax differs
+and some of the examples may not be easy to understand. In this chapter we will go through main
+points anyway.
+Each variable has only one owner scope. When owner scope ends - owned variables are
+dropped.
+We've already seen this behavior in the expressions chapter. Remember that a variable lives as long
+as its scope? Now is the perfect time to get under the hood and learn why it happens.
+
+Owner is a scope which owns a variable. Variables either can be defined in this scope (e.g. with
+keyword let ) or be passed into the scope as arguments. Since the only scope in Move is function's there are no other ways to put variables into scope.
+Each variable has only one owner, which means that when a variable is passed into function as
+argument, this function becomes the new owner, and the variable is no longer owned by the first
+function. Or you may say that this other function takes ownership of the variable.
+script {
+use {{sender}}::M;
+fun main() {
+// Module::T is a struct
+let a : Module::T = Module::create(10);
+
+// here variable `a` leaves scope of `main` function
+// and is being put into new scope of `M::value` function
+M::value(a);
+// variable a no longer exists in this scope
+// this code won't compile
+M::value(a);
+}
+}
+
+Let's look at what happens inside the value() function when we pass our value into it:
+module M {
+// create_fun skipped
+struct T { value: u8 }
+public fun create(value: u8): T {
+T { value }
+}
+
+// variable t of type M::T passed
+// `value()` function takes ownership
+public fun value(t: T): u8 {
+// we can use t as variable
+t.value
+}
+// function scope ends, t dropped, only u8 result returned
+// t no longer exists
+}
+
+Of course, a quick workaround is to return a tuple with the original variable and additional results
+(return value would have been (T, u8) ), but Move has a better solution for that.
+
+Move and Copy
+First, you need to understand how Move VM works, and what happens when you pass your value
+into a function. There are two bytecode instructions in VM: MoveLoc and CopyLoc - both of them can
+be manually used with keywords move and copy respectively.
+When a variable is being passed into another function - it's being moved and MoveLoc OpCode is
+used. Let's see how our code would look if we've used keyword move :
+script {
+use {{sender}}::M;
+fun main() {
+let a : Module::T = Module::create(10);
+M::value(move a); // variable a is moved
+
+// local a is dropped
+}
+}
+
+This is a valid Move code, however, knowing that value will still be moved you don't need to explicitly
+move it. Now when it's clear we can get to copy.
+
+Keyword copy
+If you need to pass a value to the function (where it's being moved) and save a copy of your variable,
+you can use keyword copy .
+script {
+use {{sender}}::M;
+fun main() {
+let a : Module::T = Module::create(10);
+
+// we use keyword copy to clone structure
+// can be used as `let a_copy = copy a`
+M::value(copy a);
+M::value(a); // won't fail, a is still here
+}
+}
+
+In this example we've passed a copy of a variable (hence value) a into the first call of the method
+value and saved a in local scope to use it again in a second call.
+By copying a value we've duplicated it and increased the memory size of our program, so it can be
+used - but when you copy huge data it may become pricey in terms of memory. Remember - in
+blockchains every byte counts and affects the price of execution, so using copy all the time may cost
+you a lot.
+Now you are ready to learn about references - a tool that will help you avoid unnecessary copying
+and literally save some money.
+
+References
+Many programming languages have implementation of references (see Wikipedia). Reference is a link
+to a variable (usually to a section in the memory) which you can pass into other parts of the program
+instead of moving the value.
+References (marked with &) allow you to refer to a value without taking ownership of it.
+Let's modify our example and see how references can be used.
+module M {
+struct T { value: u8 }
+// ...
+// ...
+// instead of passing a value, we'll pass a reference
+public fun value(t: &T): u8 {
+t.value
+}
+}
+
+We added ampersand & to argument type T - and by doing that we've changed argument type from
+T to reference to T or simply &T .
+Move supports two types of references: immutable - defined with & (e.g. &T ) and mutable &mut (e.g. &mut T ).
+Immutable references allow reading value without changing it. Mutable - the opposite - ability to
+read and change the value.
+module M {
+struct T { value: u8 }
+
+// returned value is of non-reference type
+public fun create(value: u8): T {
+T { value }
+}
+// immutable references allow reading
+public fun value(t: &T): u8 {
+t.value
+}
+// mutable references allow reading and changing the value
+public fun change(t: &mut T, value: u8) {
+t.value = value;
+}
+}
+
+Now let's see how to use our upgraded module M.
+script {
+use {{sender}}::M;
+fun main() {
+let t = M::create(10);
+
+// create a reference directly
+M::change(&mut t, 20);
+// or write reference to a variable
+let mut_ref_t = &mut t;
+M::change(mut_ref_t, 100);
+
+// same with immutable ref
+let value = M::value(&t);
+// this method also takes only references
+// printed value will be 100
+0x1::Debug::print<u8>(&value);
+}
+}
+
+Use immutable (&) references to read data from structs, use mutable (&mut) to modify them.
+By using proper type of references you help maintaining security and help reading your
+modules so the reader will know whether this method changes the value or only reads.
+
+Borrow checking
+Move controls the way you use references and helps you prevent unexpected bullet in your foot. To
+understand that let's see an example. I'll give you a module and a script and then will comment on
+what's going on and why.
+module Borrow {
+struct B { value: u64 }
+struct A { b: B }
+
+// create A with inner B
+public fun create(value: u64): A {
+A { b: B { value } }
+}
+// give a mutable reference to inner B
+public fun ref_from_mut_a(a: &mut A): &mut B {
+&mut a.b
+}
+// change B
+public fun change_b(b: &mut B, value: u64) {
+b.value = value;
+}
+}
+
+script {
+use {{sender}}::Borrow;
+fun main() {
+// create a struct A { b: B { value: u64 } }
+let a = Borrow::create(0);
+
+// get mutable reference to B from mut A
+let mut_a = &mut a;
+let mut_b = Borrow::ref_from_mut_a(mut_a);
+// change B
+Borrow::change_b(mut_b, 100000);
+// get another mutable reference from A
+let _ = Borrow::ref_from_mut_a(mut_a);
+}
+}
+
+This code compiles and runs without errors. First, what happens here: we use mutable reference to
+A to get mutable reference to its inner struct B . Then we change B . Then operation can be
+repeated.
+But what if we've swapped two last expressions and first tried to create a new mutable reference to
+A while mutable reference to B is still alive?
+let mut_a = &mut a;
+let mut_b = Borrow::ref_from_mut_a(mut_a);
+let _ = Borrow::ref_from_mut_a(mut_a);
+Borrow::change_b(mut_b, 100000);
+
+We would have gotten an error:
+┌── /scripts/script.move:10:17 ───
+│
+10 │
+let _ = Borrow::ref_from_mut_a(mut_a);
+│
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Invalid usage of reference as
+function argument. Cannot transfer a mutable reference that is being borrowed
+·
+8 │
+let mut_b = Borrow::ref_from_mut_a(mut_a);
+│
+----------------------------- It is still being mutably
+borrowed by this reference
+│
+
+This code won't compile. Why? Because &mut A is being borrowed by &mut B . If we could change A
+while having mutable reference to its contents, we'd get into an odd situation where A can be
+changed but reference to its contents is still here. Where would mut_b point to if there was no
+actual B ?
+We come to few conclusions:
+1. We get a compilation error which means that the Move compiler prevents these cases. It's
+called borrow checking (originally concept from Rust language). Compiler builds a borrow graph
+and disallows moving borrowed values. This is one of the reasons why Move is so safe to use in
+blockchains.
+2. You can create reference from reference, so that original reference will be borrowed by the new
+one. Mutable and immutable can be created from mutable and only immutable from
+immutable.
+3. When reference is borrowed it cannot be moved because other values depend on it.
+
+Dereferencing
+References can be dereferenced to get linked value - to do it use asterisk * .
+When dereferencing you're making a copy. Make sure that value has Copy ability.
+module M {
+struct T has copy {}
+
+// value t here is of reference type
+public fun deref(t: &T): T {
+*t
+}
+}
+
+Dereference operator does not move original value into current scope. It creates a copy of this
+value instead.
+There's a technique in Move used to copy inner field of a struct: *& - dereference a reference to the
+field. Here's a quick example:
+module M {
+struct H has copy {}
+struct T { inner: H }
+
+// ...
+// we can do it even from immutable reference!
+public fun copy_inner(t: &T): H {
+*&t.inner
+}
+}
+
+By using *& (even compiler will advise you to do so) we've copied the inner value of a struct.
+
+Referencing primitive types
+Primitive types (due to their simplicity) do not need to be passed as references and copy operation is
+done instead. Even if you pass them into function by value they will remain in current scope. You can
+intentionally use move keyword, but since primitives are very small in size copying them may even
+be cheaper than passing them by reference or even moving.
+script {
+use {{sender}}::M;
+fun main() {
+let a = 10;
+M::do_smth(a);
+let _ = a;
+}
+}
+
+This script will compile even though we didn't pass a as a reference. Adding copy is unnecessary it's already put there by VM.
+
+Understanding Generics
+Generics are essential to Move, they are what makes this language so unique to the blockchain
+world, and they are the source of Move's flexibility.
+To start I'll quote Rust Book: Generics are abstract stand-ins for concrete types or other properties.
+Practically speaking, they are the way of writing a single function, which can then be used for any
+type, they can also be called templates as this function can be used as a template handler for any
+type.
+In Move generics can be applied to signatures of struct and function .
+
+In struct definition
+First, we'll create a Box which will hold u64 value. We've already been through this, so no need for
+comments.
+module Storage {
+struct Box {
+value: u64
+}
+}
+
+This box can only contain value of u64 type - this is clear. But what if we wanted to make the same
+box for u8 type or a bool ? Would we create type Box1 and then Box2 ? Or would we publish
+another module for that? The answer is no - use generics instead.
+module Storage {
+struct Box<T> {
+value: T
+}
+}
+
+Next to the struct name we've placed <T> . Where angle brackets <..> is a place to define generic
+types, and T is a type we've templated in this struct. Inside the struct body definition we've used T
+as a regular type. Type T does not exist, it is a placeholder for any type.
+
+In function signature
+Now let's create a constructor for this struct which will first use type u64 for value.
+module Storage {
+struct Box<T> {
+value: T
+}
+
+// type u64 is put into angle brackets meaning
+// that we're using Box with type u64
+public fun create_box(value: u64): Box<u64> {
+Box<u64>{ value }
+}
+}
+
+Generics have a bit more complicated definitions - since they need to have type parameters
+specified, and regular struct Box becomes Box<u64> . There are no restrictions in what types you
+can pass into generic's angle brackets. Let's make our create_box method more generic and let
+users specify any type. How do we do that? By using another generic, now in function signature!
+module Storage {
+// ...
+public fun create_box<T>(value: T): Box<T> {
+Box<T> { value }
+}
+
+// we'll get to this a bit later, trust me
+public fun value<T: copy>(box: &Box<T>): T {
+*&box.value
+}
+}
+
+In function calls
+What we did is we added angle brackets into function signature right after function name. Just the
+same way as we did with struct. Now how would we use this function? By specifying type in function
+call.
+
+script {
+use {{sender}}::Storage;
+use 0x1::Debug;
+fun main() {
+// value will be of type Storage::Box<bool>
+let bool_box = Storage::create_box<bool>(true);
+let bool_val = Storage::value(&bool_box);
+assert(bool_val, 0);
+
+// we can do the same with integer
+let u64_box = Storage::create_box<u64>(1000000);
+let _ = Storage::value(&u64_box);
+// let's do the same with another box!
+let u64_box_in_box = Storage::create_box<Storage::Box<u64>>(u64_box);
+// accessing value of this box in box will be tricky :)
+// Box<u64> is a type and Box<Box<u64>> is also a type
+let value: u64 = Storage::value<u64>(
+&Storage::value<Storage::Box<u64>>( // Box<u64> type
+&u64_box_in_box // Box<Box<u64>> type
+)
+);
+// you've already seen Debug::print<T> method
+// which also uses generics to print any type
+Debug::print<u64>(&value);
+}
+}
+
+Here we have used Box struct with 3 types: bool , u64 and with Box<u64> - last one may seem way
+too complicated but once you've gotten used to it and understood how it works, it becomes part of
+your routine.
+Before we go any further, let's take a step back. By adding generics to Box struct we've made this
+box abstract - its definition is fairly simple compared to capacity it gave us. Now we can create Box
+with any type - be it u64 or address , or even another box, or another struct.
+
+Constraints to check Abilities
+We've learned about abilities. They can be "checked" or constrained in generics; constraints are
+named after their abilities:
+fun name<T: copy>() {} // allow only values that can be copied
+fun name<T: copy + drop>() {} // values can be copied and dropped
+fun name<T: key + store + drop + copy>() {} // all 4 abilities are present
+
+...or with structs:
+struct name<T: copy + drop> { value: T } // T can be copied and dropped
+struct name<T: store> { value: T } // T can be stored in global storage
+
+Try to remember this syntax: + (plus) sign may not be intuitive first time; it is the only place in
+Move where + is used in keyword list.
+Here's an example of a system with constraints:
+module Storage {
+
+// contents of the box can be stored
+struct Box<T: store> has key, store {
+content: T
+}
+}
+
+It is also important to mention that inner types (or generic types) MUST have abilities of the
+container (for all abilities except key ). If you think about it, everything is logical and intuitive: struct
+with copy ability must have contents that also have copy ability otherwise container object cannot
+be considered copyable. Move compiler will let you compile code that doesn't follow this logic but
+you won't be able to use these abilities. See this example:
+module Storage {
+// non-copyable or droppable struct
+struct Error {}
+
+// constraints are not specified
+struct Box<T> has copy, drop {
+contents: T
+}
+// this method creates box with non-copyable or droppable contents
+public fun create_box(): Box<Error> {
+Box { contents: Error {} }
+}
+}
+
+This code compiles and publishes successfully. But if you try to use it...
+script {
+fun main() {
+{{sender}}::Storage::create_box() // value is created and dropped
+}
+}
+
+You will get an error saying that Box is not droppable:
+┌── scripts/main.move:5:9 ───
+│
+5 │
+Storage::create_box();
+│
+^^^^^^^^^^^^^^^^^^^^^ Cannot ignore values without the 'drop' ability. The value
+must be used
+│
+
+That happens because inner value doesn't have drop ability. Container abilities automatically limited
+by its contents, so, for example if you have a container struct that has copy, drop and store, and
+inner struct has only drop, it will be impossible to copy or store this container. Another way to look
+at this is that container doesn't have to have constraints for inner types and can be flexible - used for
+any type inside.
+But to avoid mistakes always check and, if needed, specify generic constraints in functions and
+structs.
+In this example safer struct definition could be:
+// we add parent's constraints
+// now inner type MUST be copyable and droppable
+struct Box<T: copy + drop> has copy, drop {
+contents: T
+}
+
+Multiple types in generics
+Just like you can use a single type, you can use many. Generic types are put into angle brackets and
+separated by comma. Let's add a new type Shelf which will hold two boxes of two different types.
+module Storage {
+struct Box<T> {
+value: T
+}
+struct Shelf<T1, T2> {
+box_1: Box<T1>,
+box_2: Box<T2>
+}
+public fun create_shelf<Type1, Type2>(
+box_1: Box<Type1>,
+box_2: Box<Type2>
+): Shelf<Type1, Type2> {
+Shelf {
+box_1,
+box_2
+}
+}
+}
+
+Type parameters for Shelf are listed and matched inside struct's fields definition. Also, as you can
+see, name of the type parameter inside generics does not matter - it's up to you to choose a proper
+one. And each type parameter is only valid within definition so no need to match T1 or T2 with T .
+Using multiple generic type parameters is similar to using single:
+script {
+use {{sender}}::Storage;
+fun main() {
+let b1 = Storage::create_box<u64>(100);
+let b2 = Storage::create_box<u64>(200);
+
+// you can use any types - so same ones are also valid
+let _ = Storage::create_shelf<u64, u64>(b1, b2);
+}
+}
+
+You can have up to 18,446,744,073,709,551,615 (u64 size) generics in one definition. You definitely will
+never reach this limit, so feel free to use as many as you need without worrying about limits.
+
+Unused type params
+Not every type specified in generic must be used. Look at this example:
+module Storage {
+
+// these two types will be used to mark
+// where box will be sent when it's taken from shelf
+struct Abroad {}
+struct Local {}
+// modified Box will have target property
+struct Box<T, Destination> {
+value: T
+}
+public fun create_box<T, Dest>(value: T): Box<T, Dest> {
+Box { value }
+}
+}
+
+Sometimes it is nice to have generic as a constraint or constant for some action. See how it can be
+used in script:
+script {
+use {{sender}}::Storage;
+fun main() {
+// value will be of type Storage::Box<bool>
+let _ = Storage::create_box<bool, Storage::Abroad>(true);
+let _ = Storage::create_box<u64, Storage::Abroad>(1000);
+let _ = Storage::create_box<u128, Storage::Local>(1000);
+let _ = Storage::create_box<address, Storage::Local>(0x1);
+
+// or even u64 destination!
+let _ = Storage::create_box<address, u64>(0x1);
+}
+}
+
+Here we use generics to mark type, but we don't actually use it. You'll soon learn why this definition
+matters when you get to know resources concept. For now it's just another way to use them.
+
+Managing collections with Vector
+You're already familiar with the struct type which gives you the ability to create your own types
+and to store complex data. But sometimes you need something more dynamic, extensible and
+manageable. And for that Move has Vectors.
+Vector is a built-in type for storing collections of data. It is a generic solution for collection of any type
+(but only one). As its functionality is given to you by the VM; the only way to work with it is by using
+the Move standard library and native functions.
+script {
+use 0x1::Vector;
+fun main() {
+// use generics to create an emtpy vector
+let a = Vector::empty<u8>();
+let i = 0;
+
+// let's fill it with data
+while (i < 10) {
+Vector::push_back(&mut a, i);
+i = i + 1;
+};
+// now print vector length
+let a_len = Vector::length(&a);
+0x1::Debug::print<u64>(&a_len);
+// then remove 2 elements from it
+Vector::pop_back(&mut a);
+Vector::pop_back(&mut a);
+// and print length again
+let a_len = Vector::length(&a);
+0x1::Debug::print<u64>(&a_len);
+}
+}
+
+Vector can store up to u64 number of values of a single non-reference type. To see how it helps
+managing huge storages let's write a module with it.
+module Shelf {
+use 0x1::Vector;
+struct Box<T> {
+value: T
+}
+struct Shelf<T> {
+boxes: vector<Box<T>>
+}
+public fun create_box<T>(value: T): Box<T> {
+Box { value }
+}
+
+// this method will be inaccessible for non-copyable contents
+public fun value<T: copy>(box: &Box<T>): T {
+*&box.value
+}
+public fun create<T>(): Shelf<T> {
+Shelf {
+boxes: Vector::empty<Box<T>>()
+}
+}
+
+// box value is moved to the vector
+public fun put<T>(shelf: &mut Shelf<T>, box: Box<T>) {
+Vector::push_back<Box<T>>(&mut shelf.boxes, box);
+}
+public fun remove<T>(shelf: &mut Shelf<T>): Box<T> {
+Vector::pop_back<Box<T>>(&mut shelf.boxes)
+}
+public fun size<T>(shelf: &Shelf<T>): u64 {
+Vector::length<Box<T>>(&shelf.boxes)
+}
+}
+
+We'll create a shelf, few boxes for it and see how to work with vector in module:
+
+script {
+use {{sender}}::Shelf;
+fun main() {
+
+// create shelf and 2 boxes of type u64
+let shelf = Shelf::create<u64>();
+let box_1 = Shelf::create_box<u64>(99);
+let box_2 = Shelf::create_box<u64>(999);
+// put both boxes to shelf
+Shelf::put(&mut shelf, box_1);
+Shelf::put(&mut shelf, box_2);
+// prints size - 2
+0x1::Debug::print<u64>(&Shelf::size<u64>(&shelf));
+// then take one from shelf (last one pushed)
+let take_back = Shelf::remove(&mut shelf);
+let value
+= Shelf::value<u64>(&take_back);
+// verify that the box we took back is one with 999
+assert(value == 999, 1);
+// and print size again - 1
+0x1::Debug::print<u64>(&Shelf::size<u64>(&shelf));
+}
+}
+
+Vectors are very powerful. They allow you to store huge amounts of data (max length is
+18446744073709551615) and to work with it inside indexed storage.
+
+Hex and Bytestring literal for inline vector definitions
+Vector is also meant to represent strings. VM supports way of passing vector<u8> as argument into
+main function in script.
+But you can also use hexadecimal literal do define a vector<u8> in your script or a module:
+script {
+use 0x1::Vector;
+
+// this is the way to accept arguments in main
+fun main(name: vector<u8>) {
+let _ = name;
+// and this is how you use literals
+// this is a "hello world" string!
+let str = x"68656c6c6f20776f726c64";
+// hex literal gives you vector<u8> as well
+Vector::length<u8>(&str);
+}
+}
+
+Simpler approach is to use bytestring literals:
+script {
+fun main() {
+let _ = b"hello world";
+}
+}
+
+They are treated as ASCII strings and are also interpreted as vector<u8> .
+
+Vector cheatsheet
+Here's a short cheatsheet for Vector methods from standard library:
+Create an empty vector of type <E>
+Vector::empty<E>(): vector<E>;
+
+Get length of a vector
+Vector::length<E>(v: &vector<E>): u64;
+
+Push element to the end of the vector:
+Vector::push_back<E>(v: &mut vector<E>, e: E);
+
+Get mutable reference to element of vector. For immutable borrow use Vector::borrow()
+Vector::borrow_mut<E>(v: &mut vector<E>, i: u64): &E;
+
+Pop an element from the end of vector:
+Vector::pop_back<E>(v: &mut vector<E>): E;
+
+Vector module in the Move standard library: link
+
+Programmable Resources
+In this section we'll finally learn key feature of Move - resources. They are what makes Move unique,
+safe and powerful.
+To start, let's go through key points from diem developers website (source page was removed after
+renaming Libra to Diem):
+1. The key feature of Move is the ability to define custom resource types. Resource types are
+used to encode safe digital assets with rich programmability.
+
+2. Resources are ordinary values in the language. They can be stored as data structures,
+passed as arguments to procedures, returned from procedures, and so on.
+Resource is a special type of structure, and it is possible to define and create new (or use existing)
+resource right in the Move code. Therefore you're able to manage digital assets the same way you
+use any other data (like vector or struct).
+3. The Move type system provides special safety guarantees for resources. Move resources can
+never be duplicated, reused, or discarded. A resource type can only be created or
+destroyed by the module that defines the type. These guarantees are enforced statically
+by the Move virtual machine via bytecode verification. The Move virtual machine will
+refuse to run code that has not passed through the bytecode verifier.
+In references and ownership chapter you've seen how Move secures scopes and controls variable's
+owner scope. And in generics chapter you've learned that there's a special way of kind-matching to
+separate copyable and non-copyable types. All of these features provide safety for resource type.
+4. All Diem currencies are implemented using the generic Diem::T type. For example: the
+LBR currency is represented as Diem::T<LBR::T> and a hypothetical USD currency would
+be represented as Diem::T<USD::T> . Diem::T has no special status in the language; every
+Move resource enjoys the same protections.
+Just like the Diem currency, other currencies or other types of assets can be represented in Move.
+
+Further reading
+Move whitepaper
+
+Sender as Signer
+Before we get to how to use resources, you need to learn about signer type, and why this type
+exists.
+Signer is a native non-copyable (resource-like) type which holds address of transaction sender.
+Signer type represents sender authority. In other words - using signer means accessing sender's
+address and resources. It has no direct relation to signatures or literally signing, in terms of Move VM
+it simply represents sender.
+Signer type has only one ability - Drop.
+
+Signer in scripts
+Since signer is a native type, it has to be created. Though unlike vector it cannot be directly created
+in code, but can be received as a script argument:
+script {
+// signer is an owned value
+fun main(account: signer) {
+let _ = account;
+}
+}
+
+Signer argument is put into your scripts automatically by VM, which means that there's no way nor
+need to pass it into script manually. One more thing - it's always a reference. Even though standard
+library (in case of Diem it's - DiemAccount) has access to actual value of signer, functions using this
+value are private and there's no way to use or pass signer value anywhere else.
+Currently, canonical name of the variable holding signer type is account
+
+Signer module in standard library
+Native types require native functions, and for signer type it is 0x1::Signer . This module is fairly
+simple (link to original module in diem):
+module Signer {
+// Borrows the address of the signer
+// Conceptually, you can think of the `signer`
+// as being a resource struct wrapper arround an address
+// ```
+// resource struct Signer { addr: address }
+// ```
+// `borrow_address` borrows this inner field
+native public fun borrow_address(s: &signer): &address;
+
+// Copies the address of the signer
+public fun address_of(s: &signer): address {
+*borrow_address(s)
+}
+}
+
+As you can see, there're 2 methods, one of which is native and the other one is more handy as it
+copies address with dereference operator.
+Usage of this module is just as simple:
+
+script {
+fun main(account: signer) {
+let _ : address = 0x1::Signer::address_of(&account);
+}
+}
+
+Signer in module
+module M {
+use 0x1::Signer;
+
+// let's proxy Signer::address_of
+public fun get_address(account: signer): address {
+Signer::address_of(&account)
+}
+}
+
+Methods using &signer type as argument explicitly show that they are using sender's address.
+One of the reasons for this type was to show which methods require sender authority and which
+ones don't. So method cannot trick user into unauthorized access to its resources.
+
+Further reading and PRs
+Diem Community thread on signer
+Issue in Diem repository with reasoning
+PR in Diem repository
+
+What is Resource
+Resource is a concept described in Move Whitepaper. Originally it was implemented as its own type
+but later, with addition of abilities, replaced with two abilities: Key and Store . Resource is meant to
+be a perfect type for storing digital assets, to achieve that it must to be non-copyable and nondroppable. At the same time it must be storable and transferable between accounts.
+
+Definition
+Resource is a struct that has only key and store abilities:
+module M {
+struct T has key, store {
+field: u8
+}
+}
+
+Key and Store abilities
+Key ability allows struct to be used as a storage identifier. In other words, key is an ability to be
+stored as at top-level and be a storage; while store is the ability to be stored under key. You will see
+how it works in the next chapter. For now keep in mind that even primitive types have store ability they can be stored, but yet they don't have key and cannot be used as a top-level containers.
+Store ability allows value to be stored. That simple.
+
+Resource concept
+Originally resource had its own type in Move, but with addition of abilities it became a more abstract
+concept that can be implemented with key and/or store abilities. Let's still go through description for
+a resource:
+1. Resources is stored under account - therefore it exists only when assigned to account; and can
+only be accessed through this account;
+2. Account can hold only one resource of one type, and this resource must have key ability;
+3. Resource can't be copied nor dropped, but can be stored.
+4. Resource value must be used. When resource created or taken from account, it cannot be
+dropped and must be stored or destructured.
+Enough theory, let's get to action!
+
+Resource by Example
+In this section you'll finally learn how to use resources. We'll go through the process of defining a
+resource and methods to work with it, and in the end you'll get a full contract which you can then
+use as a template.
+We'll create a Collection contract, which will allow us to:
+start a collection
+add and take items from collection
+destroy collection
+Let's begin!
+
+Creating and Moving Resource
+First, let's create our module:
+
+// modules/Collection.move
+module Collection {
+
+struct Item has store {
+// we'll think of the properties later
+}
+struct Collection has key {
+items: vector<Item>
+}
+}
+
+There's a convention to call main resource of a module after the module (e.g.
+Collection::Collection). If you follow it, your modules will be easy to read and use by other
+people.
+
+Create and Move
+We've defined a struct Collection with Key ability, which will hold vector of type Item . Now let's
+see how to start new collection and how to store a resource under account. Stored resource in this
+implementation will live forever under sender's address. No one can modify or take this resource
+from owner.
+// modules/Collection.move
+module Collection {
+use 0x1::Vector;
+struct Item has store {}
+struct Collection has key {
+items: vector<Item>
+}
+
+/// note that &signer type is passed here!
+public fun start_collection(account: &signer) {
+move_to<Collection>(account, Collection {
+items: Vector::empty<Item>()
+})
+}
+}
+
+Remember signer? Now you see how it in action! To move resource to account you have built-in
+function move_to which takes signer as a first argument and Collection as second. Signature of
+move_to function can be represented like:
+native fun move_to<T: key>(account: &signer, value: T);
+
+That leads to two conclusions:
+1. You can only put a resource under your account. You cannot have access to signer value of
+another account, hence cannot put resource there.
+2. Only one resource of single type can be stored under one address. Doing the same operation
+twice would lead to discarding existing resource and this must not happen (imagine you have
+your coins stored and by inaccurate action you discard all your savings by pushing empty
+balance!). Second attempt to create existing resource will fail with error.
+
+Check existence at address
+To check if resource exists at given address Move has exists function, which signature looks similar
+to this.
+native fun exists<T: key>(addr: address): bool;
+
+By using generics this function is made type-independent and you can use any resource type to
+check if it exists at address. Actually, anyone can check if resource exists at given address. But
+checking existence is not accessing stored value!
+Let's write a function to check if user already has collection:
+// modules/Collection.move
+module Collection {
+struct Item has store, drop {}
+struct Collection has store, key {
+items: Item
+}
+
+// ... skipped ...
+/// this function will check if resource exists at address
+public fun exists_at(at: address): bool {
+exists<Collection>(at)
+}
+}
+
+Now you know how to create a resource, how to move it to sender and how to check if resource
+already exists. It's time to learn to read this resource and to modify it!
+
+Read and Modify Resource
+To read and modify resource Move has two more built-in functions. Their names perfectly match
+their goals: borrow_global and borrow_global_mut .
+
+Immutable borrow with borrow_global
+In ownership and references chapter you've got to know mutable (&mut) and immutable references.
+It's time to put this knowledge to practice!
+// modules/Collection.move
+module Collection {
+// added a dependency here!
+use 0x1::Signer;
+use 0x1::Vector;
+struct Item has store, drop {}
+struct Collection has key, store {
+items: vector<Item>
+}
+
+// ... skipped ...
+/// get collection size
+/// mind keyword acquires!
+public fun size(account: &signer): u64 acquires Collection {
+let owner = Signer::address_of(account);
+let collection = borrow_global<Collection>(owner);
+Vector::length(&collection.items)
+}
+}
+
+A lot has happened here. First, let's deal with method signature. Global function borrow_global<T>
+gives a immutable reference to resource T. It's signature is like:
+native fun borrow_global<T: key>(addr: address): &T;
+
+By using this function we get read access to resource stored at specific address. Which means that
+module has capability to read any of its resources at any addresses (if this functionality is
+implemented).
+Another conclusion: due to borrow checking you cannot return reference to resource nor to its
+contents (as original reference to resource will die on scope end).
+Since resource is a non-copyable type, it is impossible to use dereference operator '*' on it.
+
+Acquires keyword
+There's another detail worth explanation: keyword acquires which is put after function return
+value. This keyword explicitly defines all the resources acquired by this function. You must specify
+each acquired resource, even if it's a nested function call actually acquires resource - parent scope
+must have this resource specified in acquires list.
+Syntax for function with acquires is like this:
+fun <name>(<args...>): <ret_type> acquires T, T1 ... {
+
+Mutable borrow with borrow_global_mut
+To get mutable reference to resource, add _mut to your borrow_global and that's all. Let's add a
+function to add new (currently empty) item to collection.
+module Collection {
+
+// ... skipped ...
+public fun add_item(account: &signer) acquires Collection {
+let collection = borrow_global_mut<Collection>(Signer::address_of(account));
+Vector::push_back(&mut collection.items, Item {});
+}
+}
+
+Mutable reference to resource allows creating mutable references to its contents. That is why we're
+able to modify inner vector items in this example.
+Signature for borrow_global_mut is:
+native fun borrow_global_mut<T: key>(addr: address): &mut T;
+
+Take and Destroy Resource
+Final function of this section is move_from which takes resource from account. We'll implement
+destroy function which will move collection resource from account and will destroy its contents.
+
+// modules/Collection.move
+module Collection {
+// ... skipped ...
+public fun destroy(account: &signer) acquires Collection {
+
+// account no longer has resource attached
+let collection = move_from<Collection>(Signer::address_of(account));
+// now we must use resource value - we'll destructure it
+// look carefully - Items must have drop ability
+let Collection { items: _ } = collection;
+// done. resource destroyed
+}
+}
+
+Resource value must be used. So resource, when taken from account, must be either destructured
+or passed as return value. However keep in mind that even if you pass this value outside and get it in
+the script, there are limited options of what to do next as script context does not allow you to do
+anything with struct or resource except passing it somewhere else. Knowing that - design your
+modules properly and give user an option to do something with returned resource.
+The very last signature:
+native fun move_from<T: key>(addr: address): T;
+
+Further Steps
+In this section you've seen how resource restrictions are represented in Move syntax. You've also
+learned how to create, check, access, modify and destroy resources. This part is supposed to be last
+in the book. However you can modify this module to your needs and think of these options:
+1. Try to modify this module to support any type with generics;
+2. Look through Offer module and think of a way to offer collection to another account.
+Full code of module Collection can be found on GitHub.
+
+Tutorials
+In this section you'll find tutorials which will cover basic usages of Move language and will
+demonstrate its capabilities.
+
+Writing ERC20 Token
+To be done...
+
+Translations
+Book is also available in other languages:
+Chinese (by Starcoin team)
+Korean (by Astro Space)
+Turkish (by YTU Blockchain Community Istanbul)
+Russian (incomplete) (by Sr20dem)
+
+Contribute
+If you notice any typos or mistakes or willing to contribute, feel free to submit an issue or a PR on
+GitHub.
+
+
