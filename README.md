@@ -13,13 +13,15 @@ can provide comparisons with other blockchains, perform debugging on snippets of
 
 # How It Works
 I have used the LangChain document loader and provided all the information in .txt format to make it easier and more efficient to crawl through, find information, and provide the answers.
-It uses the OpenAI API to perform all these actions. Anybody can enter their own OpenAI API key in the constants.py py file and run the program with the following syntax in the terminal - 
+It uses the OpenAI API to perform all these actions. Anybody can enter their own OpenAI API key in the constants.py file and run the program with the following syntax in the terminal:
                                                 python aptosgpt.py "<Question>"
 
 # Future Vision
 I intend to rely less on the OpenAi API to make it cheaper and much more private. It can be done by Collecting data from all the platforms where Aptos has a footing, such as Twitter 
 and reports from events Aptos organizes, existing Move smart contracts, and much more, and using all those data to write a sophisticated Algorithm that I have more control over 
-and then using a fine-tuned LLM over it to make the process smoother, faster, and much more attractive on the user side.
+and then using a fine-tuned LLM over it to make the process smoother, faster, and much more attractive on the user side. We can divide the data into chunks of, say 1000 tokens and then
+use FAISS algorithm created by Meta developers to first search with chunks containing the most relevant information asked in the question and then only send those to be evaluated 
+thereby resulting in less time-consuming and more efficient results. 
 Using all the above data, the DApp will be able to take on large-scale problems and provide solutions at a rapid pace. With real-time data being fed to the databases, the world of Aptos 
 evolves, this DApp can be a great starting point for all new aspiring developers trying to get into the Aptos blockchain.
 Unfortunately, as of now, I neither have the skills nor the knowledge to do all of this but I intend to work on acquiring the necessary knowledge to 
