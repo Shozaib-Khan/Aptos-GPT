@@ -13,7 +13,8 @@ can provide comparisons with other blockchains, perform debugging on snippets of
 
 # How It Works
 I have used the LangChain document loader and provided all the information in .txt format to make it easier and more efficient to crawl through, find information, and provide the answers.
-It uses the OpenAI API to perform all these actions.
+It uses the OpenAI API to perform all these actions. Anybody can enter their own OpenAI API key in the constants.py py file and run the program with the following syntax in the terminal - 
+                                                python aptosgpt.py "<Question>"
 
 # Future Vision
 I intend to rely less on the OpenAi API to make it cheaper and much more private. It can be done by Collecting data from all the platforms where Aptos has a footing, such as Twitter 
