@@ -1,0 +1,26 @@
+void insert(int value, struct node **root)
+{
+    if(*root == NULL)
+        {
+            (*root)=malloc(sizeof(struct node));
+            (*root)->data=value;
+            (*root)->leftChild =NULL;
+            (*root)->rightChild=NULL;
+        }
+     else 
+         {
+            if (value < ((*root)->data))
+                   insert(value, &((*root)->leftChild));
+              else
+              insert(value,&((*root)->rightChild));
+          }
+}
+void inorderTraversal(struct node *node)
+{
+      if(node != NULL)
+       {
+        inorderTraversal(node->leftChild);
+           printf("%d ",node->data);
+           inorderTraversal(node->rightChild);
+       }
+}
